@@ -99,6 +99,11 @@ ifneq ($(wildcard /usr/include/linux/netfilter.h),)
 FEATURES+=	-DHAVE_NETFILTER
 endif
 
+# Autodetect TrustHub
+#ifneq ($(wildcard /usr/include/trusthub/sslsplit.h),)
+FEATURES+=	-DHAVE_TRUSTHUB
+#endif
+
 
 ### Variables you might need to override
 

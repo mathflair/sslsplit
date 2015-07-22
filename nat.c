@@ -69,6 +69,18 @@
 #include <linux/netfilter_ipv6.h>
 #endif /* HAVE_NETFILTER */
 
+#ifdef HAVE_TRUSTHUB
+//#include <trusthub/sslsplit.h>
+#ifdef __APPLE__
+#ifndef SOL_IP
+#define SOL_IP IPPROTO_IP
+#endif
+#ifndef IP_ORIGDSTADDR
+#define IP_ORIGDSTADDR 20
+#endif
+#endif
+#endif
+
 
 /*
  * Access NAT state tables in a NAT engine independant way.
@@ -389,6 +401,31 @@ nat_getsockname_lookup_cb(struct sockaddr *dst_addr, socklen_t *dst_addrlen,
 }
 #endif
 
+/*
+ * TrustHub
+ */
+
+#ifdef HAVE_TRUSTHUB
+/*
+ * TrustHub will have set the IP_ORIGDSTADDR option on proxied connections.
+ */
+static int
+nat_netfilter_lookup_cb(struct sockaddr *dst_addr, socklen_t *dst_addrlen,
+                        evutil_socket_t s,
+                        UNUSED struct sockaddr *src_addr,
+                        UNUSED socklen_t src_addrlen)
+{
+	int rv;
+
+	rv = getsockopt(s, SOL_IP, IP_ORIGDSTADDR, dst_addr, dst_addrlen);
+	if (rv == -1) {
+		log_err_printf("Error from getsockopt(IP_ORIGDSTADDR): %s\n", 
+		               strerror(errno));
+	}
+	return rv;
+}
+
+#endif /* HAVE_TRUSTHUB */
 
 /*
  * NAT engine glue code and API.
