@@ -410,7 +410,7 @@ nat_getsockname_lookup_cb(struct sockaddr *dst_addr, socklen_t *dst_addrlen,
  * TrustHub will have set the IP_ORIGDSTADDR option on proxied connections.
  */
 static int
-nat_netfilter_lookup_cb(struct sockaddr *dst_addr, socklen_t *dst_addrlen,
+nat_trusthub_lookup_cb(struct sockaddr *dst_addr, socklen_t *dst_addrlen,
                         evutil_socket_t s,
                         UNUSED struct sockaddr *src_addr,
                         UNUSED socklen_t src_addrlen)
@@ -446,6 +446,13 @@ struct engine {
 };
 
 struct engine engines[] = {
+#ifdef HAVE_TRUSTHUB
+	{
+		"trusthub", 1, 0,
+		NULL, NULL, NULL,
+		nat_trusthub_lookup_cb, NULL
+	},
+#endif /* HAVE_TRUSTHUB */
 #ifdef HAVE_PF
 	{
 		"pf", 1, 0,
