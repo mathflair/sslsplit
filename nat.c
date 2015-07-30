@@ -71,6 +71,7 @@
 
 #ifdef HAVE_TRUSTHUB
 //#include <trusthub/sslsplit.h>
+#include <sys/socket.h>
 #ifdef __APPLE__
 #ifndef SOL_IP
 #define SOL_IP IPPROTO_IP
@@ -412,7 +413,7 @@ nat_getsockname_lookup_cb(struct sockaddr *dst_addr, socklen_t *dst_addrlen,
 static int
 nat_trusthub_lookup_cb(struct sockaddr *dst_addr, socklen_t *dst_addrlen,
                         evutil_socket_t s,
-                        UNUSED struct sockaddr *src_addr,
+                        struct sockaddr *src_addr,
                         UNUSED socklen_t src_addrlen)
 {
 	int rv;
@@ -422,6 +423,24 @@ nat_trusthub_lookup_cb(struct sockaddr *dst_addr, socklen_t *dst_addrlen,
 		log_err_printf("Error from getsockopt(IP_ORIGDSTADDR): %s\n", 
 		               strerror(errno));
 	}
+
+	// Debug information for the proxied ip address.
+	if (src_addr->sa_family == AF_INET) {
+		log_dbg_printf("Source IP address is: %pI4\n", (struct sockaddr_in *) src_addr);
+		log_dbg_printf("Source port is: %d\n", (int) ntohs(((struct sockaddr_in *) src_addr)->sin_port));
+	} else {
+		log_dbg_printf("Source IP address is: %pI6\n", (struct sockaddr_in6 *) src_addr);
+		log_dbg_printf("Source port is: %d\n", (int) ntohs(((struct sockaddr_in6 *) src_addr)->sin6_port));
+	}
+
+	if (dst_addr->sa_family == AF_INET) {
+		log_dbg_printf("Proxied IP address is: %pI4\n", (struct sockaddr_in *) dst_addr);
+		log_dbg_printf("Proxied port is: %d\n", (int) ntohs(((struct sockaddr_in *) dst_addr)->sin_port));
+	} else {
+		log_dbg_printf("Proxied IP address is: %pI6\n", (struct sockaddr_in6 *) dst_addr);
+		log_dbg_printf("Proxied port is: %d\n", (int) ntohs(((struct sockaddr_in6 *) dst_addr)->sin6_port));
+	}
+	
 	return rv;
 }
 
