@@ -71,6 +71,7 @@
 
 #ifdef HAVE_TRUSTHUB
 //#include <trusthub/sslsplit.h>
+#include <arpa/inet.h>
 #include <sys/socket.h>
 #ifdef __APPLE__
 #ifndef SOL_IP
@@ -407,6 +408,28 @@ nat_getsockname_lookup_cb(struct sockaddr *dst_addr, socklen_t *dst_addrlen,
  */
 
 #ifdef HAVE_TRUSTHUB
+#define TRUSTHUB_ORIG_DST	85
+static void
+log_dbg_printf_addr(struct sockaddr *addr)
+{
+	/* Make sure there's enough room for IPv6 addresses */
+	char str[INET6_ADDRSTRLEN];
+	unsigned long ip_addr;
+	struct in6_addr ip6_addr;
+	int port;
+	if (addr->sa_family == AF_INET) {
+		ip_addr = ((struct sockaddr_in*)addr)->sin_addr.s_addr;
+		inet_ntop(AF_INET, &ip_addr, str, INET_ADDRSTRLEN);
+		port = (int)ntohs(((struct sockaddr_in*)addr)->sin_port);
+	} else {
+		ip6_addr = ((struct sockaddr_in6*)addr)->sin6_addr;
+		inet_ntop(AF_INET6, &ip6_addr, str, INET6_ADDRSTRLEN);
+		port = (int)ntohs(((struct sockaddr_in6*)addr)->sin6_port);
+	}
+	log_dbg_printf("%s:%d\n", str, port);
+	return;
+}
+
 /*
  * TrustHub will have set the IP_ORIGDSTADDR option on proxied connections.
  */
@@ -418,29 +441,18 @@ nat_trusthub_lookup_cb(struct sockaddr *dst_addr, socklen_t *dst_addrlen,
 {
 	int rv;
 
-	rv = getsockopt(s, SOL_IP, IP_ORIGDSTADDR, dst_addr, dst_addrlen);
+	rv = getsockopt(s, IPPROTO_IP, TRUSTHUB_ORIG_DST, dst_addr, dst_addrlen);
 	if (rv == -1) {
-		log_err_printf("Error from getsockopt(IP_ORIGDSTADDR): %s\n", 
+		log_err_printf("Error from getsockopt(TRUSTHUB_ORIG_DST): %s\n", 
 		               strerror(errno));
 	}
 
 	// Debug information for the proxied ip address.
-	if (src_addr->sa_family == AF_INET) {
-		log_dbg_printf("Source IP address is: %pI4\n", (struct sockaddr_in *) src_addr);
-		log_dbg_printf("Source port is: %d\n", (int) ntohs(((struct sockaddr_in *) src_addr)->sin_port));
-	} else {
-		log_dbg_printf("Source IP address is: %pI6\n", (struct sockaddr_in6 *) src_addr);
-		log_dbg_printf("Source port is: %d\n", (int) ntohs(((struct sockaddr_in6 *) src_addr)->sin6_port));
-	}
-
-	if (dst_addr->sa_family == AF_INET) {
-		log_dbg_printf("Proxied IP address is: %pI4\n", (struct sockaddr_in *) dst_addr);
-		log_dbg_printf("Proxied port is: %d\n", (int) ntohs(((struct sockaddr_in *) dst_addr)->sin_port));
-	} else {
-		log_dbg_printf("Proxied IP address is: %pI6\n", (struct sockaddr_in6 *) dst_addr);
-		log_dbg_printf("Proxied port is: %d\n", (int) ntohs(((struct sockaddr_in6 *) dst_addr)->sin6_port));
-	}
+	log_dbg_printf("Source:");
+	log_dbg_printf_addr(src_addr);
 	
+	log_dbg_printf("Original Destination:");
+	log_dbg_printf_addr(dst_addr);
 	return rv;
 }
 
